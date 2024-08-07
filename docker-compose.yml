@@ -1,0 +1,13 @@
+services:
+  postgres:
+    image: postgres:16.2-alpine
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_PASSWORD: "mypassword"
+
+volumes:
+  db_data:
