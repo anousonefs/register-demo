@@ -1,16 +1,29 @@
 package user
 
 import (
+	"database/sql"
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 )
 
 // database
 var users []*User
 
 var id int
+
+type UserService struct {
+	db *sql.DB
+}
+
+func NewUserService(db *sql.DB) UserService {
+	return UserService{
+		db,
+	}
+}
 
 type User struct {
 	ID        int    `json:"id"`
@@ -21,100 +34,147 @@ type User struct {
 	Address   string `json:"address"`
 }
 
-func InitUsers() {
-	id++
-	item := User{
-		ID:        id,
-		FirstName: "jojo",
-		LastName:  "jj",
-		Gender:    "male",
-		Phone:     "+8562094938282",
-		Address:   "ນາຄຳ",
-	}
-	users = append(users, &item)
+func (s UserService) ListUsers(c echo.Context) error {
 
-	id++
-	item2 := User{
-		ID:        id,
-		FirstName: "sone",
-		LastName:  "freestyle",
-		Gender:    "male",
-		Phone:     "+8562094938283",
-		Address:   "ສາລາຄຳ",
+	query := "select id, first_name, last_name, gender, phone, address from users;"
+
+	rows, err := s.db.QueryContext(c.Request().Context(), query)
+	if err != nil {
+		//todo return customer error
+		return err
 	}
-	users = append(users, &item2)
+
+	res := make([]User, 0)
+
+	for rows.Next() {
+		var i User
+		rows.Scan(
+			&i.ID,
+			&i.FirstName,
+			&i.LastName,
+			&i.Gender,
+			&i.Phone,
+			&i.Address,
+		)
+
+		res = append(res, i)
+	}
+
+	return c.JSON(200, res)
 }
 
-func ListUsers(c echo.Context) error {
-	return c.JSON(200, users)
-}
-
-func CreateUser(c echo.Context) error {
+func (s UserService) CreateUser(c echo.Context) error {
 	var req User
-
 	if err := c.Bind(&req); err != nil {
 		return err
 	}
 
-	id++
-	req.ID = id
-	users = append(users, &req)
+	insertSql := "insert into users(first_name, last_name, gender, phone, address) values($1, $2, $3, $4, $5);"
+
+	result, err := s.db.ExecContext(
+		c.Request().Context(),
+		insertSql,
+		req.FirstName,
+		req.LastName,
+		req.Gender,
+		req.Phone,
+		req.Address,
+	)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("no rowsAffected")
+	}
 
 	return c.JSON(http.StatusOK, echo.Map{
 		"message": "success",
 	})
 }
 
-func UpdateUser(c echo.Context) error {
+func (s UserService) UpdateUser(c echo.Context) (err error) {
+
+	defer func() {
+		if err != nil {
+			logrus.Errorf("UpdateUser(): %v\n", err)
+		}
+	}()
 	var req User
-	if err := c.Bind(&req); err != nil {
+	if err = c.Bind(&req); err != nil {
 		// customer error
 		return err
 	}
 
-	id, err := strconv.Atoi(c.Param("id"))
+	var id int
+	id, err = strconv.Atoi(c.Param("id"))
 	if err != nil {
 		// customer error
 		return err
 	}
 
-	for _, i := range users {
-		if i.ID == id {
-			i.FirstName = req.FirstName
-			i.LastName = req.LastName
-			i.Gender = req.Gender
-			i.Phone = req.Phone
-			i.Address = req.Address
-		}
+	updateSql := `UPDATE users
+								SET 
+										first_name = $1,
+										last_name = $2,
+										gender = $3,
+										phone = $4,
+										address = $5
+								WHERE 
+										id = $6;
+	`
+
+	result, err := s.db.ExecContext(
+		c.Request().Context(),
+		updateSql,
+		req.FirstName,
+		req.LastName,
+		req.Gender,
+		req.Phone,
+		req.Address,
+		id,
+	)
+	if err != nil {
+		return err
 	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("no rowsAffected")
+	}
+
 	return c.JSON(http.StatusOK, echo.Map{
 		"message": "success",
 	})
 }
-func DeleteUser(c echo.Context) error {
+
+func (s UserService) DeleteUser(c echo.Context) error {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		// customer error
 		return err
 	}
 
-	//id: 4
-	// 1, 2, 3, 4, 5, 6, 7
-	// users[:id] = 1, 2, 3
-	//users[id+1:] = 5, 6, 7
+	deleteSql := "delete from users where id = $1"
 
-	isFound := false
-	for index, i := range users {
-		if i.ID == id {
-			isFound = true
-			users = append(users[:index], users[index+1:]...)
-		}
+	result, err := s.db.ExecContext(c.Request().Context(), deleteSql, id)
+	if err != nil {
+		return err
 	}
 
-	if !isFound {
-		return c.JSON(http.StatusOK, echo.Map{
-			"message": "not found",
-		})
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("no rowsAffected")
 	}
 
 	return c.JSON(http.StatusOK, echo.Map{
