@@ -67,6 +67,7 @@ func main() {
 			"message": "success",
 		})
 	})
+	println("test")
 
 	e.Logger.Fatal(e.Start(":8080"))
 }
