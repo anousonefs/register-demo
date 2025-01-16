@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"os"
 	"register/v1/user"
 	user2 "register/v2/user"
 
@@ -9,8 +10,15 @@ import (
 	_ "github.com/lib/pq"
 )
 
+func GetEnv(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok {
+		return value
+	}
+	return fallback
+}
+
 func main() {
-	connStr := "postgresql://username:password@localhost:5432/mydatabase"
+	connStr := GetEnv("DB_URL", "")
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
