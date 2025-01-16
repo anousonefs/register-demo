@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"register/v1/user"
 	user2 "register/v2/user"
@@ -19,6 +20,7 @@ func GetEnv(key, fallback string) string {
 
 func main() {
 	connStr := GetEnv("DB_URL", "")
+	fmt.Printf("db_url: %v\n", connStr)
 
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
@@ -28,6 +30,7 @@ func main() {
 	if err := db.Ping(); err != nil {
 		panic(err)
 	}
+	fmt.Printf("connect db success!\n")
 
 	e := echo.New()
 	user.InitUsers()
