@@ -22,6 +22,8 @@ func main() {
 	connStr := GetEnv("DB_URL", "")
 	fmt.Printf("db_url: %v\n", connStr)
 
+	connStr = "postgresql://postgres:irBNRUdFqGyqZGcjBKPvNFmCbFdzGZcT@viaduct.proxy.rlwy.net:51792/postgres"
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		panic(err)
